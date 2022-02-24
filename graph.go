@@ -12,12 +12,26 @@ type Node struct {
 	Weight float64
 }
 
+// EdgeDirection describes the "direction" of an edge relative
+// to a node. A direction can be in one of three states, none,
+// in, or out.
+type EdgeDirection int
+
+const (
+	None EdgeDirection = 0 // [ - ] Edge has no direction, is undirected.
+	In   EdgeDirection = 1 // [ ← ] Edge has inward direction.
+	Out  EdgeDirection = 2 // [ → ] Edge has outward direction.
+
+	// Consider:
+	//
+	// Both EdgeDirection = 3 // [ ↔ ] Edge has both inward and outward direction.
+)
+
 // Edge is a relationship with a Node, which can be directed if
 // the edge is an "in" or "out" (directed) or neither (undirected).
 type Edge struct {
 	*Node
-	In        bool
-	Out       bool
+	Direction EdgeDirection
 	Magnitude float64
 }
 
@@ -26,16 +40,16 @@ type Edges []*Edge
 
 // AddEdge adds a directed relationship to a Node.
 //
-// n → e
+//   n → e
 func (n *Node) AddEdge(e *Node) {
-	n.Edges = append(n.Edges, &Edge{Node: e, Out: true})
-	e.Edges = append(e.Edges, &Edge{Node: n, In: true})
+	n.Edges = append(n.Edges, &Edge{Node: e, Direction: Out})
+	e.Edges = append(e.Edges, &Edge{Node: n, Direction: In})
 }
 
 // AddLink adds a bi-directional relationship to a Node, that
 // is both inwards and outwards from either side.
 //
-// n ↔ e
+//   n ↔ e
 func (n *Node) AddLink(e *Node) {
 	n.AddEdge(e)
 	e.AddEdge(n)
@@ -68,7 +82,7 @@ func (n *Node) HasCycles() bool {
 func (es Edges) In() Edges {
 	var in Edges
 	for _, e := range es {
-		if e.In {
+		if e.Direction == In {
 			in = append(in, e)
 		}
 	}
@@ -79,7 +93,7 @@ func (es Edges) In() Edges {
 func (es Edges) Out() Edges {
 	var out Edges
 	for _, e := range es {
-		if e.Out {
+		if e.Direction == Out {
 			out = append(out, e)
 		}
 	}
@@ -120,12 +134,12 @@ func visitWithTerminator(root *Node, record map[*Node]struct{}, in, out bool, fn
 
 	for _, edge := range root.Edges {
 		if out {
-			if edge.Out {
+			if edge.Direction == Out {
 				visitWithTerminator(edge.Node, record, in, out, fn)
 			}
 		}
 		if in {
-			if edge.In {
+			if edge.Direction == In {
 				visitWithTerminator(edge.Node, record, in, out, fn)
 			}
 		}
@@ -193,30 +207,29 @@ func (n *Node) PathTo(end *Node) Path {
 		return nil
 	}
 
-	// if len(path) == 1 && n == end {
-	// 	return nil
-	// }
-
 	return path
 }
 
 // HasPath checks if there is a Path to the given end Node.
+//
+//   root node       f           end node
+//   ┌────────     ↗             ┌───────
+//   a → b → c → e           i → e
+//           ↓     ↘       ↗
+//           d       g → h
+//
+//   Path: a → b → c → e → g → h → i → e
+//
 func (n *Node) HasPath(end *Node) bool {
 	return n.PathTo(end) != nil
-}
-
-func (n *Node) PathToWithout(end, without *Node) Path {
-	// TODO
-	return nil
-}
-
-func (n *Node) HasPathToWithout(end, without *Node) bool {
-	return n.PathToWithout(end, without) != nil
 }
 
 // ConnectNodes creats an ordered, directed relationship between
 // the given nodes. The first node has an edge to the second node,
 // which has a relationship to the third node, etc.
+//
+//   a → b → c → ...
+//
 func ConnectNodes(nodes ...*Node) {
 	for i := range nodes {
 		if i+1 < len(nodes) {
@@ -229,6 +242,13 @@ func ConnectNodes(nodes ...*Node) {
 
 // MeshNodes creats a fully meshed, bi-directional relationship between
 // all of the given nodes.
+//
+//       a
+//    ⤢  ↑  ⤡
+//   b ←─┼─→ d
+//    ⤡  ↓  ⤢
+//       c
+//
 func MeshNodes(nodes ...*Node) {
 	for i := range nodes {
 		if i+1 < len(nodes) {
@@ -241,11 +261,24 @@ func MeshNodes(nodes ...*Node) {
 	}
 }
 
-// FindBridges finds all "bridge" edges within a connected graph. An edge is a
-// bridge if and only if it is not contained in any cycle. A bridge therefore
-// cannot be a cycle chord.
+// FindBridges finds all "bridge" edges within a graph. An edge is a
+// bridge if and only if it is not contained in any cycle. A bridge
+// therefore cannot be a cycle chord.
 //
 // A "bridge" is also known as an "isthmus", "cut-edge", or "cut arc".
+//
+//          a ← d
+//        ↙   ↖
+//   e → b  →  c     Bridges (3): e → b, f → b, d → a
+//       ↑
+//       f
+//
+//   a           e
+//   ↑ ⤡       ⤢ ↑
+//   |   c → d   |   Bridges (1): c → d
+//   ↓ ⤢       ⤡ ↓
+//   b           f
+//
 //
 // https://mathworld.wolfram.com/GraphBridge.html
 // https://en.wikipedia.org/wiki/Bridge_(graph_theory)
@@ -257,15 +290,8 @@ func FindBridges(root *Node) []Path {
 			if !n.HasCycles() {
 				bridges = append(bridges, n.PathTo(edge.Node))
 			} else {
-				path := edge.PathTo(n)
-				if len(path) == 0 {
+				if !edge.HasPath(n) {
 					bridges = append(bridges, n.PathTo(edge.Node))
-				} else if len(path) == 2 {
-					// TODO, maybe check if the path[1] can go back to
-					// edges from path[0] maybe to prove
-					// its deletion would cause a break?
-
-					// Maybe "HasPathToWithout" variant?
 				}
 			}
 		}

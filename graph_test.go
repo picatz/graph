@@ -224,11 +224,17 @@ func TestFindBridges(t *testing.T) {
 			}(),
 		},
 		{
-			Name: "TIE fighter bi-directional",
+			Name:    "TIE fighter bi-directional",
 			Bridges: map[string]bool{
 				// c ↔ d is a bi-directional relationship
-				"c → d": true,
-				"d → c": true,
+				//
+				// So, it's really two edges, a "bridge pair".
+				//
+				// c → d
+				// d → c
+				//
+				// If one of those edges is removed, the
+				// bridge is still maintained with the other.
 			},
 			Root: func() *graph.Node {
 				a := &graph.Node{Name: "a"}
