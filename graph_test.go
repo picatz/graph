@@ -33,7 +33,7 @@ func ExampleNode() {
 	// Output: b
 }
 
-func ExampleVisit() {
+func ExampleNode_Visit() {
 	a := &graph.Node{Name: "a"}
 	b := &graph.Node{Name: "b"}
 	c := &graph.Node{Name: "c"}
@@ -78,11 +78,12 @@ func ExampleMeshNodes() {
 	// c → a
 }
 
-func ExamplePathTo() {
+func ExampleConnectNodes_path_to() {
 	a := &graph.Node{Name: "a"}
 	b := &graph.Node{Name: "b"}
 	c := &graph.Node{Name: "c"}
 
+	// a → b → c
 	graph.ConnectNodes(a, b, c)
 
 	path := a.PathTo(c)
@@ -100,11 +101,14 @@ func ExamplePathTo() {
 	// 2: c
 }
 
-func ExampleMeshPathTo() {
+func ExampleMeshNodes_path_to() {
 	a := &graph.Node{Name: "a"}
 	b := &graph.Node{Name: "b"}
 	c := &graph.Node{Name: "c"}
 
+	//      a
+	//    ⤢   ⤡
+	//   b  ↔  c
 	graph.MeshNodes(a, b, c)
 
 	fmt.Println("a to b:", a.HasPath(b))
