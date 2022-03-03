@@ -125,6 +125,21 @@ func ExampleMeshNodes_path_to() {
 	// c to b: true
 }
 
+func TestAddEdgeWithDirection(t *testing.T) {
+	a := &graph.Node{}
+	b := &graph.Node{}
+
+	a.AddEdgeWithDirection(b, graph.Out) // a  →  b
+
+	if !a.HasPath(b) {
+		t.Fatalf("expected a to have path to b")
+	}
+
+	if b.HasPath(a) {
+		t.Fatalf("did not expect b to have path back to a")
+	}
+}
+
 func TestCyclicalGraph(t *testing.T) {
 	a := &graph.Node{Name: "a"}
 	b := &graph.Node{Name: "b"}

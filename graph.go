@@ -53,6 +53,25 @@ func (n *Node) AddLink(e *Node) {
 	e.AddEdge(n)
 }
 
+// AddEdgeWithDirection adds a potentially directed relationship to a Node. The direction
+// is up to the caller of the function. A corresponding edge is automatically added
+// added; that is, if an "out edge" is added, an "in edge" is added on the other side
+// of the edge relationship. This allows for the relationships to be bi-directionally
+// walked from any point in the graph.
+func (n *Node) AddEdgeWithDirection(e *Node, direction EdgeDirection) {
+	switch direction {
+	case None, Unknown, Both:
+		n.Edges = append(n.Edges, &Edge{Node: e, Direction: direction})
+		e.Edges = append(e.Edges, &Edge{Node: n, Direction: direction})
+	case Out:
+		n.Edges = append(n.Edges, &Edge{Node: e, Direction: Out})
+		e.Edges = append(e.Edges, &Edge{Node: n, Direction: In})
+	case In:
+		n.Edges = append(n.Edges, &Edge{Node: e, Direction: In})
+		e.Edges = append(e.Edges, &Edge{Node: n, Direction: Out})
+	}
+}
+
 // HasCycles checks if the Node is part of a cycle. A cycle of a graph
 // is a subset of the edge set of a graph that forms a path such that
 // the first node of the path corresponds to the last.
