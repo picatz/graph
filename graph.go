@@ -12,6 +12,17 @@ type Node struct {
 	Weight float64
 }
 
+// Nodes is a collection of Node objects.
+type Nodes []*Node
+
+// NodeSet is a collection of uniqe Node objects. Meant to be useful for
+// algorithms that require collections of nodes that should not have
+// repeated sequences.
+//
+// Also particularly useful for recording visited nodes
+// during graph traversal.
+type NodeSet map[*Node]struct{}
+
 // EdgeDirection describes the "direction" of an edge relative
 // to a node. A direction can be in one of three states, none,
 // in, or out.
@@ -130,13 +141,15 @@ func (n *Node) VisitAll(fn func(*Node)) {
 
 // visitWithTerminator is an internal function used to walk node
 // relationships starting at the root node.
-func visitWithTerminator(root *Node, record map[*Node]struct{}, in, out bool, fn func(*Node) bool) {
+//
+// used to be: in, out
+func visitWithTerminator(root *Node, record NodeSet, direction EdgeDirection, fn func(*Node) bool) {
 	if root == nil {
 		return
 	}
 
 	if record == nil {
-		record = map[*Node]struct{}{}
+		record = NodeSet{}
 	}
 
 	_, alreadyVisited := record[root]
@@ -150,14 +163,12 @@ func visitWithTerminator(root *Node, record map[*Node]struct{}, in, out bool, fn
 	}
 
 	for _, edge := range root.Edges {
-		if out {
-			if edge.Direction == Out {
-				visitWithTerminator(edge.Node, record, in, out, fn)
-			}
-		}
-		if in {
-			if edge.Direction == In {
-				visitWithTerminator(edge.Node, record, in, out, fn)
+		switch direction {
+		case Unknown, None, Both:
+			visitWithTerminator(edge.Node, record, direction, fn)
+		case In, Out:
+			if edge.Direction == direction {
+				visitWithTerminator(edge.Node, record, direction, fn)
 			}
 		}
 	}
@@ -165,30 +176,30 @@ func visitWithTerminator(root *Node, record map[*Node]struct{}, in, out bool, fn
 
 // visit is an internal function that walks the outward nodes with
 // a depth-first algorithm.
-func visit(root *Node, record map[*Node]struct{}, fn func(*Node)) {
+func visit(root *Node, record NodeSet, fn func(*Node)) {
 	wrapFn := func(n *Node) bool {
 		fn(n)
 		return true
 	}
 
-	visitWithTerminator(root, nil, false, true, wrapFn)
+	visitWithTerminator(root, nil, Out, wrapFn)
 }
 
 // visitAll is an internal function that walks the outward and inward
 // nodes with a depth-first algorithm.
-func visitAll(root *Node, record map[*Node]struct{}, fn func(*Node)) {
+func visitAll(root *Node, record NodeSet, fn func(*Node)) {
 	wrapFn := func(n *Node) bool {
 		fn(n)
 		return true
 	}
 
-	visitWithTerminator(root, nil, true, true, wrapFn)
+	visitWithTerminator(root, nil, Both, wrapFn)
 }
 
 // Path is an ordered set of Nodes that make a path from the start,
 // the first element in the slice, to the end, the last element in
 // the slice.
-type Path []*Node
+type Path Nodes
 
 // String returns a human-readable string for the Path.
 func (path Path) String() string {
@@ -207,7 +218,7 @@ func (n *Node) PathTo(end *Node) Path {
 	var hasPath bool
 	var path Path
 
-	visitWithTerminator(n, nil, false, true, func(n *Node) bool {
+	visitWithTerminator(n, nil, Out, func(n *Node) bool {
 		path = append(path, n)
 		for _, edge := range n.Edges.Out() {
 			if edge.Node == end {
