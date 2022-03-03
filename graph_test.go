@@ -29,7 +29,7 @@ func ExampleNode() {
 
 	a.AddEdge(b)
 
-	fmt.Println(a.Edges[0].Name)
+	fmt.Println(a.Edges[0].Node.Name)
 	// Output: b
 }
 

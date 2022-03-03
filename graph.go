@@ -28,7 +28,7 @@ const (
 // Edge is a relationship with a Node, which can be directed if
 // the edge is an "in" or "out" (directed) or neither (undirected).
 type Edge struct {
-	*Node
+	Node      *Node
 	Direction EdgeDirection
 	Magnitude float64
 }
@@ -69,7 +69,7 @@ func (n *Node) AddLink(e *Node) {
 // https://en.wikipedia.org/wiki/Cycle_(graph_theory)
 func (n *Node) HasCycles() bool {
 	for _, edge := range n.Edges.Out() {
-		if edge.HasPath(n) {
+		if edge.Node.HasPath(n) {
 			return true
 		}
 	}
@@ -288,7 +288,7 @@ func FindBridges(root *Node) []Path {
 			if !n.HasCycles() {
 				bridges = append(bridges, n.PathTo(edge.Node))
 			} else {
-				if !edge.HasPath(n) {
+				if !edge.Node.HasPath(n) {
 					bridges = append(bridges, n.PathTo(edge.Node))
 				}
 			}
