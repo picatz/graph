@@ -18,13 +18,11 @@ type Node struct {
 type EdgeDirection int
 
 const (
-	None EdgeDirection = 0 // [ - ] Edge has no direction, is undirected.
-	In   EdgeDirection = 1 // [ ← ] Edge has inward direction.
-	Out  EdgeDirection = 2 // [ → ] Edge has outward direction.
-
-	// Consider:
-	//
-	// Both EdgeDirection = 3 // [ ↔ ] Edge has both inward and outward direction.
+	Unknown EdgeDirection = 0 // [ ┄ ] Edge has an unknown direction.
+	None    EdgeDirection = 1 // [ - ] Edge has no direction, is undirected.
+	In      EdgeDirection = 2 // [ ← ] Edge has inward direction.
+	Out     EdgeDirection = 3 // [ → ] Edge has outward direction.
+	Both    EdgeDirection = 4 // [ ↔ ] Edge has both inward and outward direction.
 )
 
 // Edge is a relationship with a Node, which can be directed if
