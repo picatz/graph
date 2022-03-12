@@ -177,13 +177,90 @@ func TestCyclicalGraph(t *testing.T) {
 }
 
 func TestFindBridges(t *testing.T) {
+	only := []string{
+		// "simple dangling edge",
+		// "multiple dangling edges next to a cycle",
+		// "dangling edge next to a cycle",
+		// "nested dangling edge next to a cycle",
+		// "TIE fighter single direction",
+		// "TIE fighter bi-directional",
+		// "tree",
+	}
+
 	tests := []struct {
 		Name    string
 		Root    *graph.Node
 		Bridges map[string]bool
 	}{
 		{
-			Name: "wolfram",
+			Name: "simple dangling edge",
+			Bridges: map[string]bool{
+				"a → b": true,
+			},
+			Root: func() *graph.Node {
+				a := &graph.Node{Name: "a"}
+				b := &graph.Node{Name: "b"}
+
+				// a → b
+
+				a.AddEdge(b)
+
+				return a
+			}(),
+		},
+		{
+			Name: "dangling edge next to a cycle",
+			Bridges: map[string]bool{
+				"a → b": true,
+			},
+			Root: func() *graph.Node {
+				a := &graph.Node{Name: "a"}
+				b := &graph.Node{Name: "b"}
+				c := &graph.Node{Name: "c"}
+				d := &graph.Node{Name: "d"}
+
+				//        c
+				//      ↗   ↘
+				// a → b  ←  d
+				//
+
+				a.AddEdge(b)
+				b.AddEdge(c)
+				c.AddEdge(d)
+				d.AddEdge(b)
+
+				return a
+			}(),
+		},
+		{
+			Name: "nested dangling edge next to a cycle",
+			Bridges: map[string]bool{
+				"a → b": true,
+				"b → c": true,
+			},
+			Root: func() *graph.Node {
+				a := &graph.Node{Name: "a"}
+				b := &graph.Node{Name: "b"}
+				c := &graph.Node{Name: "c"}
+				d := &graph.Node{Name: "d"}
+				e := &graph.Node{Name: "e"}
+
+				//            d
+				//          ↗   ↘
+				// a → b → c  ←  e
+				//
+
+				a.AddEdge(b)
+				b.AddEdge(c)
+				c.AddEdge(d)
+				d.AddEdge(e)
+				e.AddEdge(c)
+
+				return a
+			}(),
+		},
+		{
+			Name: "multiple dangling edges next to a cycle",
 			Bridges: map[string]bool{
 				"e → b": true,
 				"f → b": true,
@@ -235,7 +312,7 @@ func TestFindBridges(t *testing.T) {
 				a.AddLink(b)
 				c.AddLink(a)
 				c.AddLink(b)
-				c.AddEdge(d)
+				c.AddEdge(d) // this is the bridge
 				d.AddLink(e)
 				d.AddLink(f)
 				f.AddLink(e)
@@ -247,13 +324,13 @@ func TestFindBridges(t *testing.T) {
 			Bridges: map[string]bool{
 				// c ↔ d is a bi-directional relationship
 				//
-				// So, it's really two edges, a "bridge pair".
+				// It's really two edges. If one of those edges
+				// is removed, the bridge is still maintained
+				// with the other.
 				//
-				// c → d
-				// d → c
+				// "c → d": false,
+				// "d → c": false,
 				//
-				// If one of those edges is removed, the
-				// bridge is still maintained with the other.
 			},
 			Root: func() *graph.Node {
 				a := &graph.Node{Name: "a"}
@@ -316,6 +393,21 @@ func TestFindBridges(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		// To optionally debug only certain tests, useful
+		// for interactive debugging without needing to skip
+		// graphs you're not interested in.
+		if len(only) > 0 {
+			var run bool
+			for _, onlyTest := range only {
+				if onlyTest == test.Name {
+					run = true
+					break
+				}
+			}
+			if !run {
+				continue
+			}
+		}
 		t.Run(test.Name, func(t *testing.T) {
 			bridges := graph.FindBridges(test.Root)
 
@@ -329,6 +421,9 @@ func TestFindBridges(t *testing.T) {
 
 			if len(bridges) != len(test.Bridges) {
 				t.Logf("unexpected number of bridges found: expected: %d, got: %d", len(test.Bridges), len(bridges))
+				for _, bridge := range bridges {
+					t.Logf("\t%s", bridge)
+				}
 				t.Fail()
 			}
 		})
