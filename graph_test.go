@@ -140,6 +140,53 @@ func TestAddEdgeWithDirection(t *testing.T) {
 	}
 }
 
+func TestDirection(t *testing.T) {
+	tests := []struct {
+		Name      string
+		Direction graph.EdgeDirection
+		String    string
+	}{
+		{
+			Name:      "unknown",
+			Direction: graph.Unknown,
+			String:    "┄",
+		},
+		{
+			Name:      "none",
+			Direction: graph.None,
+			String:    "-",
+		},
+		{
+			Name:      "in",
+			Direction: graph.In,
+			String:    "←",
+		},
+		{
+			Name:      "out",
+			Direction: graph.Out,
+			String:    "→",
+		},
+		{
+			Name:      "both",
+			Direction: graph.Both,
+			String:    "↔",
+		},
+		{
+			Name:      "anything else",
+			Direction: graph.EdgeDirection(100),
+			String:    "┄",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			if test.Direction.String() != test.String {
+				t.Fatalf("expected: %q, got: %q", test.String, test.Direction)
+			}
+		})
+	}
+}
+
 func TestCyclicalGraph(t *testing.T) {
 	a := &graph.Node{Name: "a"}
 	b := &graph.Node{Name: "b"}
@@ -182,8 +229,8 @@ func TestFindBridges(t *testing.T) {
 		// "multiple dangling edges next to a cycle",
 		// "dangling edge next to a cycle",
 		// "nested dangling edge next to a cycle",
-		// "TIE fighter single direction",
-		// "TIE fighter bi-directional",
+		// "TIE fighter (barbell) single direction",
+		// "TIE fighter (barbell) bi-directional",
 		// "tree",
 	}
 
@@ -291,7 +338,7 @@ func TestFindBridges(t *testing.T) {
 			}(),
 		},
 		{
-			Name: "TIE fighter single direction",
+			Name: "TIE fighter (barbell) single direction",
 			Bridges: map[string]bool{
 				"c → d": true,
 			},
@@ -320,7 +367,7 @@ func TestFindBridges(t *testing.T) {
 			}(),
 		},
 		{
-			Name:    "TIE fighter bi-directional",
+			Name:    "TIE fighter (barbell) bi-directional",
 			Bridges: map[string]bool{
 				// c ↔ d is a bi-directional relationship
 				//
@@ -427,5 +474,184 @@ func TestFindBridges(t *testing.T) {
 				t.Fail()
 			}
 		})
+	}
+}
+
+func TestFindAdjacentTo(t *testing.T) {
+	tests := []struct {
+		Name       string
+		Case       func(*testing.T)
+		Unexpected bool
+	}{
+		{
+			Name:       "simple",
+			Unexpected: true,
+			Case: func(t *testing.T) {
+				var (
+					a = &graph.Node{Name: "a"}
+					b = &graph.Node{Name: "b"}
+					c = &graph.Node{Name: "c"}
+				)
+
+				// a  →  b  →  c
+
+				a.AddEdge(b)
+				b.AddEdge(c)
+
+				if !a.Edges.AdjacentTo(b) {
+					t.Fail()
+				}
+
+				if !b.Edges.AdjacentTo(c) {
+					t.Fail()
+				}
+
+				if a.Edges.AdjacentTo(c) {
+					t.Fail()
+				}
+			},
+		},
+		{
+			Name:       "complex",
+			Unexpected: true,
+			Case: func(t *testing.T) {
+				var (
+					a = &graph.Node{Name: "a"}
+					b = &graph.Node{Name: "b"}
+					c = &graph.Node{Name: "c"}
+					d = &graph.Node{Name: "d"}
+					e = &graph.Node{Name: "e"}
+				)
+
+				//           b
+				//         ↙   ↖
+				//       c       a
+				//     ↙   ↘   ↗
+				//    e  →   d
+
+				a.AddEdge(b)
+				b.AddEdge(c)
+				c.AddEdge(d)
+				d.AddEdge(a)
+				c.AddEdge(e)
+				e.AddEdge(d)
+
+				if !a.Edges.AdjacentTo(b) {
+					t.Fail()
+				}
+
+				if !b.Edges.AdjacentTo(c) {
+					t.Fail()
+				}
+
+				if a.Edges.AdjacentTo(c) {
+					t.Fail()
+				}
+
+				if !c.Edges.AdjacentTo(d) {
+					t.Fail()
+				}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, test.Case)
+	}
+}
+
+func TestFindCliques(t *testing.T) {
+	var (
+		a = &graph.Node{Name: "a"}
+		b = &graph.Node{Name: "b"}
+		c = &graph.Node{Name: "c"}
+		d = &graph.Node{Name: "d"}
+		e = &graph.Node{Name: "e"}
+		f = &graph.Node{Name: "f"}
+		g = &graph.Node{Name: "g"}
+		h = &graph.Node{Name: "h"}
+		i = &graph.Node{Name: "i"}
+		j = &graph.Node{Name: "j"}
+		k = &graph.Node{Name: "k"}
+		l = &graph.Node{Name: "l"}
+		m = &graph.Node{Name: "m"}
+	)
+
+	//       a
+	//     ↙   ↘
+	//    b  →  c
+	//            ↘
+	//   i  ←  h    d → e
+	//    ↘   ↗   ↙
+	//      g ← f
+	//    ↙ ↑ ↘
+	//  j   m ← l
+	//    ↘ ↑ ↗
+	//      k
+	//
+	// Cliques (of 3 or more)
+	//
+	// 1. a, b, c
+	// 2. g, h, i
+	// 3. g, m, l
+	// 4. k, m, l
+	//
+
+	a.AddEdge(b)
+	a.AddEdge(c)
+	b.AddEdge(c)
+	c.AddEdge(d)
+	d.AddEdge(e)
+	d.AddEdge(f)
+	f.AddEdge(g)
+	g.AddEdge(h)
+	h.AddEdge(i)
+	i.AddEdge(g)
+	g.AddEdge(j)
+	j.AddEdge(k)
+	k.AddEdge(l)
+	k.AddEdge(m)
+	l.AddEdge(m)
+	g.AddEdge(l)
+	m.AddEdge(g)
+
+	cliques := graph.FindCliques(a, 3)
+
+	t.Logf("found %d cliques", len(cliques))
+	for _, clique := range cliques {
+		t.Logf("clique: %v", clique)
+	}
+}
+
+func TestFindCliques_2(t *testing.T) {
+	var (
+		a = &graph.Node{Name: "a"}
+		b = &graph.Node{Name: "b"}
+		c = &graph.Node{Name: "c"}
+		d = &graph.Node{Name: "d"}
+		e = &graph.Node{Name: "e"}
+	)
+
+	// ← ↑ → ↓ ↔ ↕ ↖ ↗ ↘ ↙
+
+	//           b
+	//         ↙   ↖
+	//       c       a
+	//     ↙   ↘   ↗
+	//    e  →   d
+	//
+
+	a.AddEdge(b)
+	b.AddEdge(c)
+	c.AddEdge(d)
+	d.AddEdge(a)
+	c.AddEdge(e)
+	e.AddEdge(d)
+
+	cliques := graph.FindCliques(a, 3)
+
+	t.Logf("found %d cliques", len(cliques))
+	for _, clique := range cliques {
+		t.Logf("clique: %v", clique)
 	}
 }

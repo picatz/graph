@@ -2,6 +2,7 @@ package graph
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -24,9 +25,64 @@ type Nodes []*Node
 // during graph traversal.
 type NodeSet map[*Node]struct{}
 
+func (n NodeSet) String() string {
+	nodes := []string{}
+
+	for node := range n {
+		nodes = append(nodes, node.Name)
+	}
+
+	sort.SliceStable(nodes, func(i, j int) bool {
+		return nodes[i] < nodes[j]
+	})
+
+	return strings.Join(nodes, ", ")
+}
+
+func (n NodeSet) Contains(node *Node) bool {
+	if len(n) == 0 {
+		return false
+	}
+	_, ok := n[node]
+	return ok
+}
+
+func (ns NodeSet) Add(node *Node) {
+	ns[node] = struct{}{}
+}
+
+func (ns NodeSet) Nodes() []*Node {
+	nodes := []*Node{}
+	for n := range ns {
+		nodes = append(nodes, n)
+	}
+	return nodes
+}
+
+func (ns NodeSet) SameAs(other NodeSet) bool {
+	if len(ns) != len(other) {
+		return false
+	}
+
+	var sameCount int
+
+	for n := range ns {
+		if _, ok := other[n]; !ok {
+			return false
+		}
+		sameCount++
+	}
+
+	return len(ns) == sameCount
+}
+
 // EdgeDirection describes the "direction" of an edge relative
-// to a node. A direction can be in one of three states, none,
-// in, or out.
+// to a node. A direction can be in one of five states:
+//   0. Unknown
+//   1. None
+//   2. In
+//   3. Out
+//   4. Both
 type EdgeDirection int
 
 const (
@@ -64,6 +120,29 @@ func (d EdgeDirection) AnyOf(directions ...EdgeDirection) bool {
 	return false
 }
 
+// Match checks if the edge direction matches the given edge direction,
+// either exactly, or implicitly.
+//
+//  0. Unknown ┄ : ┄
+//  1. None    - : -, ↔
+//  2. In      ← : ←, ↔
+//  3. Out     → : →, ↔
+//  4. Both    ↔ : ↔, ←, →
+func (d EdgeDirection) Match(direction EdgeDirection) bool {
+	switch direction {
+	case None:
+		return d == None
+	case In:
+		return d.AnyOf(In, Both)
+	case Out:
+		return d.AnyOf(Out, Both)
+	case Both:
+		return d.AnyOf(In, Out, Both)
+	default:
+		return d == Unknown || d > 4
+	}
+}
+
 // Edge is a relationship with a Node, which can be directed if
 // the edge is an "in" or "out" (directed) or neither (undirected).
 type Edge struct {
@@ -74,6 +153,49 @@ type Edge struct {
 
 // Edges is a collection of Node relationships.
 type Edges []*Edge
+
+func (edges Edges) Contains(n *Node) bool {
+	for _, edge := range edges {
+		if edge.Node == n {
+			return true
+		}
+	}
+	return false
+}
+
+func (edges Edges) ButNotWith(n *Node) Edges {
+	other := Edges{}
+	for _, edge := range edges {
+		if edge.Node != n {
+			other = append(other, edge)
+		}
+	}
+	return other
+}
+
+func (edges Edges) AdjacentNodes() NodeSet {
+	nodeSet := NodeSet{}
+
+	for _, edge := range edges {
+		nodeSet.Add(edge.Node)
+	}
+
+	return nodeSet
+}
+
+func (edges Edges) AdjacentTo(nodes ...*Node) bool {
+	nodeSet := NodeSet{}
+
+	for _, edge := range edges {
+		for _, node := range nodes {
+			if edge.Node == node {
+				nodeSet.Add(node)
+			}
+		}
+	}
+
+	return len(nodeSet) == len(nodes)
+}
 
 // AddEdge adds a directed relationship to a Node.
 //
@@ -581,4 +703,99 @@ func FindBridges(root *Node) []Path {
 	})
 
 	return bridges
+}
+
+// Clique is a subset of nodes in a graph such that every two
+// distinct nodes in the set are adjacent.
+//
+// https://en.wikipedia.org/wiki/Clique_(graph_theory)
+type Clique = NodeSet
+
+// Cliques is a collection of clique node sets.
+type Cliques []Clique
+
+func (cliques Cliques) ContainsClique(c Clique) bool {
+	for _, clique := range cliques {
+		if clique.SameAs(c) {
+			return true
+		}
+	}
+	return false
+}
+
+func (cliques Cliques) ContainsNode(n *Node) bool {
+	for _, clique := range cliques {
+		if clique.Contains(n) {
+			return true
+		}
+	}
+	return false
+}
+
+func (cliques Cliques) ContainsNodeWithIndex(n *Node) (int, bool) {
+	for index, clique := range cliques {
+		if clique.Contains(n) {
+			return index, true
+		}
+	}
+	return 0, false
+}
+
+// FindCliques handles finding all "cliques" within a graph. A a clique
+// is a subset of nodes in a graph such that every two distinct nodes
+// in the clique are adjacent. That is, a clique of a graph "G" is an
+// induced subgraph of "G" that is complete.
+//
+// References
+// - https://en.wikipedia.org/wiki/Clique_(graph_theory)
+// - https://en.wikipedia.org/wiki/Induced_subgraph
+// - https://en.wikipedia.org/wiki/Complete_graph
+// - https://mathworld.wolfram.com/Clique.html
+func FindCliques(root *Node, minSize int) Cliques {
+	cliques := Cliques{}
+
+	//           b
+	//         ↙   ↖
+	//       c       a
+	//     ↙   ↘   ↗
+	//    e  →   d
+	//
+	//
+	// Cliques: [1] {c, e, d}
+
+	root.VisitAll(func(n *Node) {
+		if len(n.Edges) == 0 {
+			return
+		}
+
+		clique := Clique{}
+		clique.Add(n)
+
+		for _, edge := range n.Edges {
+			for _, otherEdge := range n.Edges.ButNotWith(edge.Node) {
+				if otherEdge.Node.Edges.AdjacentTo(clique.Nodes()...) {
+					clique.Add(otherEdge.Node)
+				}
+			}
+		}
+
+		if len(clique) >= minSize && !cliques.ContainsClique(clique) {
+			cliques = append(cliques, clique)
+		}
+	})
+
+	// Basically a tree structure...
+	// groups := map[*Node]NodeSet{}
+	// visitAll(root, nil, func(n *Node) {
+	// 	fmt.Println(n.Name)
+	// 	_, ok := groups[n]
+	// 	if !ok {
+	// 		groups[n] = NodeSet{}
+	// 	}
+	// 	for _, edge := range n.Edges {
+	// 		groups[n][edge.Node] = struct{}{}
+	// 	}
+	// })
+
+	return cliques
 }
