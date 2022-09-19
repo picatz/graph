@@ -6,12 +6,65 @@ import (
 	"strings"
 )
 
+// Sub is a "subgraph", a subet of nodes within a graph. This can be
+// used to namespace specific nodes so they're in logical graph.
+//
+// https://en.wikipedia.org/wiki/Induced_subgraph
+type Sub struct {
+	Name  string
+	Nodes NodeSet
+	Root  *Node
+	Attributes
+}
+
+// Visit walks the nodes of the subraph.
+//
+// It does not perform  a depth-first-search, but the
+// given function can choose to implement that using
+// the node's Visit method.
+func (s *Sub) Visit(fn func(*Node)) {
+	if fn == nil {
+		return
+	}
+
+	for node := range s.Nodes {
+		fn(node)
+	}
+}
+
+// Attributes are named values that can be associated with a node or subgraph.
+type Attributes map[string]any
+
+// UseAttribute is a helper function to use a named attribute of a specific type.
+func UseAttribute[T any](attrs Attributes, name string, fn func(T)) error {
+	v, ok := attrs[name]
+	if !ok {
+		return fmt.Errorf("graph node attribute %q doesn't exist", name)
+	}
+	vt, ok := v.(T)
+	if !ok {
+		return fmt.Errorf("graph node attribute %q is of type %T not %T", name, v, vt)
+	}
+	fn(vt)
+	return nil
+}
+
 // Node is the base unit of which graphs are formed.
 type Node struct {
 	// The (unique) name (or label).
 	Name string
 	// Adjacency list of edges.
 	Edges Edges
+	// Named attributes about the node.
+	Attributes
+}
+
+// NewNode returns a new node with the given name and attributes.
+func NewNode(name string, attrs Attributes) *Node {
+	return &Node{
+		Name:       name,
+		Attributes: attrs,
+	}
 }
 
 // Nodes is a collection of Node objects.
@@ -24,6 +77,17 @@ type Nodes []*Node
 // Also particularly useful for recording visited nodes
 // during graph traversal.
 type NodeSet map[*Node]struct{}
+
+// NewNodeSet returns a new NodeSet that includes the given nodes.
+func NewNodeSet(nodes ...*Node) NodeSet {
+	ns := NodeSet{}
+
+	for _, n := range nodes {
+		ns[n] = struct{}{}
+	}
+
+	return ns
+}
 
 func (n NodeSet) String() string {
 	nodes := []string{}
@@ -78,11 +142,11 @@ func (ns NodeSet) SameAs(other NodeSet) bool {
 
 // EdgeDirection describes the "direction" of an edge relative
 // to a node. A direction can be in one of five states:
-//   0. Unknown
-//   1. None
-//   2. In
-//   3. Out
-//   4. Both
+//  0. Unknown
+//  1. None
+//  2. In
+//  3. Out
+//  4. Both
 type EdgeDirection int
 
 const (
@@ -199,7 +263,7 @@ func (edges Edges) AdjacentTo(nodes ...*Node) bool {
 
 // AddEdge adds a directed relationship to a Node.
 //
-//   n → e
+//	n → e
 //
 // To control the direction used for the relationship, use the AddEdgeWithDirection method.
 func (n *Node) AddEdge(e *Node) {
@@ -210,10 +274,11 @@ func (n *Node) AddEdge(e *Node) {
 // AddLink adds a bi-directional relationship to a Node.
 //
 // Note: while this is sometimes rendered with a single "↔" (Both),
-//       this method really defines two distinct edges using the
-//       In and Out direction.
 //
-//   n ↔ e : [ n → e, e → n ]
+//	    this method really defines two distinct edges using the
+//	    In and Out direction.
+//
+//	n ↔ e : [ n → e, e → n ]
 func (n *Node) AddLink(e *Node) {
 	n.AddEdge(e)
 	e.AddEdge(n)
@@ -242,11 +307,11 @@ func (n *Node) AddEdgeWithDirection(e *Node, direction EdgeDirection) {
 // is a subset of the edge set of a graph that forms a path such that
 // the first node of the path corresponds to the last.
 //
-// Example of Cycle
+// # Example of Cycle
 //
 // a → b → c → a
 //
-// Example of Non-Cycle
+// # Example of Non-Cycle
 //
 // a → b → c
 //
@@ -297,13 +362,13 @@ func (es Edges) Out() Edges {
 
 // Visit walks the outward nodes using a depth-first-search.
 //
-//      root node
-//      ┌────────         1. Start at root "a"
-//   1  a           e 5   2. Go to edge node "b"
-//      ↑ ⤡ 3   4 ⤢ ↑     3. Go to edge node "c"
-//      |   c ↔ d   |     4. Go to edge node "d"
-//      ↓ ⤢       ⤡ ↓     5. Go to edge node "e"
-//   2  b           f 6   6. Go to edge node "f"
+//	   root node
+//	   ┌────────         1. Start at root "a"
+//	1  a           e 5   2. Go to edge node "b"
+//	   ↑ ⤡ 3   4 ⤢ ↑     3. Go to edge node "c"
+//	   |   c ↔ d   |     4. Go to edge node "d"
+//	   ↓ ⤢       ⤡ ↓     5. Go to edge node "e"
+//	2  b           f 6   6. Go to edge node "f"
 func (n *Node) Visit(fn func(*Node)) {
 	visit(n, nil, fn)
 }
@@ -391,7 +456,8 @@ type Paths []Path
 // Identical checks if the given path is the same.
 //
 // Note: this currently uses the string representation, which might not always
-//       be accurate if the nodes do not, or contain non-uniq names.
+//
+//	be accurate if the nodes do not, or contain non-uniq names.
 func (path Path) Identical(path2 Path) bool {
 	return path.String() == path2.String()
 }
@@ -484,14 +550,13 @@ func (n *Node) PathToWithout(end, without *Node) bool {
 
 // HasPath checks if there is a Path to the given end Node.
 //
-//   root node       f           end node
-//   ┌────────     ↗             ┌───────
-//   a → b → c → e           i → e
-//           ↓     ↘       ↗
-//           d       g → h
+//	root node       f           end node
+//	┌────────     ↗             ┌───────
+//	a → b → c → e           i → e
+//	        ↓     ↘       ↗
+//	        d       g → h
 //
-//   Path: a → b → c → e → g → h → i → e
-//
+//	Path: a → b → c → e → g → h → i → e
 func (n *Node) HasPath(end *Node) bool {
 	return n.PathTo(end) != nil
 }
@@ -500,8 +565,7 @@ func (n *Node) HasPath(end *Node) bool {
 // the given nodes. The first node has an edge to the second node,
 // which has a relationship to the third node, etc.
 //
-//   a → b → c → ...
-//
+//	a → b → c → ...
 func ConnectNodes(nodes ...*Node) {
 	for i := range nodes {
 		if i+1 < len(nodes) {
@@ -515,12 +579,11 @@ func ConnectNodes(nodes ...*Node) {
 // MeshNodes creats a fully meshed, bi-directional relationship between
 // all of the given nodes.
 //
-//       a
-//    ⤢  ↑  ⤡
-//   b ←─┼─→ d
-//    ⤡  ↓  ⤢
-//       c
-//
+//	    a
+//	 ⤢  ↑  ⤡
+//	b ←─┼─→ d
+//	 ⤡  ↓  ⤢
+//	    c
 func MeshNodes(nodes ...*Node) {
 	for i := range nodes {
 		if i+1 < len(nodes) {
@@ -539,17 +602,17 @@ func MeshNodes(nodes ...*Node) {
 //
 // A "bridge" is also known as an "isthmus", "cut-edge", or "cut arc".
 //
-//          a ← d
-//        ↙   ↖
-//   e → b  →  c     Bridges (3): e → b, f → b, d → a
-//       ↑
-//       f
+//	       a ← d
+//	     ↙   ↖
+//	e → b  →  c     Bridges (3): e → b, f → b, d → a
+//	    ↑
+//	    f
 //
-//   a           e
-//   ↑ ⤡       ⤢ ↑
-//   |   c → d   |   Bridges (1): c → d
-//   ↓ ⤢       ⤡ ↓
-//   b           f
+//	a           e
+//	↑ ⤡       ⤢ ↑
+//	|   c → d   |   Bridges (1): c → d
+//	↓ ⤢       ⤡ ↓
+//	b           f
 //
 // To find the bridges in a graph, we need to visit each node
 // and determine if it contains an edge that, if removed, would

@@ -632,8 +632,6 @@ func TestFindCliques_2(t *testing.T) {
 		e = &graph.Node{Name: "e"}
 	)
 
-	// ← ↑ → ↓ ↔ ↕ ↖ ↗ ↘ ↙
-
 	//           b
 	//         ↙   ↖
 	//       c       a
@@ -653,5 +651,81 @@ func TestFindCliques_2(t *testing.T) {
 	t.Logf("found %d cliques", len(cliques))
 	for _, clique := range cliques {
 		t.Logf("clique: %v", clique)
+	}
+}
+
+func TestSub(t *testing.T) {
+	sub := graph.Sub{
+		Name: "test",
+		Attributes: graph.Attributes{
+			"example": true,
+		},
+		Nodes: graph.NewNodeSet(
+			graph.NewNode(
+				"first",
+				graph.Attributes{
+					"something": "yes",
+				},
+			),
+			graph.NewNode(
+				"second",
+				graph.Attributes{
+					"something": true,
+				},
+			),
+			graph.NewNode(
+				"third",
+				graph.Attributes{
+					"something": 1,
+				},
+			),
+		),
+	}
+
+	fmt.Println(sub)
+}
+
+func TestAttributes(t *testing.T) {
+	attrs := graph.Attributes{
+		"hello":   "world",
+		"enabled": true,
+		"size":    100,
+		"rate":    1.0,
+	}
+
+	err := graph.UseAttribute(attrs, "hello", func(v string) {
+		if v != "world" {
+			t.Fail()
+		}
+	})
+	if err != nil {
+		t.Fail()
+	}
+
+	err = graph.UseAttribute(attrs, "enabled", func(v bool) {
+		if v != true {
+			t.Fail()
+		}
+	})
+	if err != nil {
+		t.Fail()
+	}
+
+	err = graph.UseAttribute(attrs, "size", func(v int) {
+		if v != 100 {
+			t.Fail()
+		}
+	})
+	if err != nil {
+		t.Fail()
+	}
+
+	err = graph.UseAttribute(attrs, "rate", func(v float64) {
+		if v != 1.0 {
+			t.Fail()
+		}
+	})
+	if err != nil {
+		t.Fail()
 	}
 }
