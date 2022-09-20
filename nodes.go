@@ -226,6 +226,22 @@ func (es Edges) Out() Edges {
 	return out
 }
 
+func (es Edges) NodeSet() NodeSet {
+	var ns NodeSet
+	for _, e := range es {
+		ns.Add(e.Node)
+	}
+	return ns
+}
+
+func (es Edges) Nodes() Nodes {
+	var ns Nodes
+	for _, e := range es {
+		ns = append(ns, e.Node)
+	}
+	return ns
+}
+
 // Visit walks the outward nodes using a depth-first-search.
 //
 //	   root node
