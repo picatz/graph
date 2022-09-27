@@ -11,7 +11,7 @@ type Node struct {
 	// The (unique) name (or label).
 	Name string
 	// Adjacency list of edges.
-	Edges Edges
+	Edges
 	// Named attributes about the node.
 	Attributes
 }
@@ -26,6 +26,10 @@ func NewNode(name string, attrs Attributes) *Node {
 
 // Nodes is a collection of Node objects.
 type Nodes []*Node
+
+func NewNodes(nodes ...*Node) Nodes {
+	return nodes
+}
 
 func (nodes Nodes) Names() []string {
 	names := make([]string, len(nodes))
@@ -86,6 +90,16 @@ func (ns NodeSet) Add(node *Node) {
 	ns[node] = struct{}{}
 }
 
+func (ns NodeSet) IsAdjacentWith(other ...*Node) bool {
+	var isAdj int
+	for n := range ns {
+		if n.Edges.AdjacentTo(other...) {
+			isAdj++
+		}
+	}
+	return isAdj >= len(other)
+}
+
 func (ns NodeSet) Nodes() []*Node {
 	nodes := []*Node{}
 	for n := range ns {
@@ -111,6 +125,10 @@ func (ns NodeSet) SameAs(other NodeSet) bool {
 	return len(ns) == sameCount
 }
 
+func (ns NodeSet) Emtpy() bool {
+	return len(ns) == 0
+}
+
 func (nodes Nodes) IndexOf(o *Node) int {
 	for i, node := range nodes {
 		if node == o {
@@ -125,6 +143,39 @@ func (nodes Nodes) AtIndex(i int) (*Node, error) {
 		return nil, fmt.Errorf("graph invalid index %d for nodes of size %d", i, len(nodes))
 	}
 	return nodes[i], nil
+}
+
+type NodeSets []NodeSet
+
+func (nodeSets NodeSets) Emtpy() bool {
+	return len(nodeSets) == 0
+}
+
+func (nodeSets NodeSets) Contains(n *Node) bool {
+	for _, nodeSet := range nodeSets {
+		if nodeSet.Contains(n) {
+			return true
+		}
+	}
+	return false
+}
+
+func (nodeSets NodeSets) GetSetThatContains(n *Node) (NodeSet, bool) {
+	for _, nodeSet := range nodeSets {
+		if nodeSet.Contains(n) {
+			return nodeSet, true
+		}
+	}
+	return nil, false
+}
+
+func (nodeSets NodeSets) GetSetNotAdjacentWith(nodes ...*Node) (NodeSet, bool) {
+	for _, nodeSet := range nodeSets {
+		if !nodeSet.IsAdjacentWith(nodes...) {
+			return nodeSet, true
+		}
+	}
+	return nil, false
 }
 
 // AddEdge adds a directed relationship to a Node.

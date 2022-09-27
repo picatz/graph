@@ -38,9 +38,11 @@ func ExampleNode_Visit() {
 	b := &graph.Node{Name: "b"}
 	c := &graph.Node{Name: "c"}
 
-	a.AddEdge(b)
-	b.AddEdge(c)
-	c.AddEdge(a)
+	graph.AddEdges(
+		graph.AddEdge{From: a, To: b},
+		graph.AddEdge{From: b, To: c},
+		graph.AddEdge{From: c, To: a},
+	)
 
 	a.Visit(func(n *graph.Node) {
 		fmt.Println(n.Name)
@@ -648,6 +650,14 @@ func TestFindCliques_2(t *testing.T) {
 
 	cliques := graph.FindCliques(a, 3)
 
+	if len(cliques) != 1 {
+		t.Fail()
+	}
+
+	if len(cliques[0].Nodes()) != 3 {
+		t.Fail()
+	}
+
 	t.Logf("found %d cliques", len(cliques))
 	for _, clique := range cliques {
 		t.Logf("clique: %v", clique)
@@ -660,7 +670,7 @@ func TestSub(t *testing.T) {
 		Attributes: graph.Attributes{
 			"example": true,
 		},
-		Nodes: graph.NewNodeSet(
+		Nodes: graph.NewNodes(
 			graph.NewNode(
 				"first",
 				graph.Attributes{
@@ -726,6 +736,120 @@ func TestAttributes(t *testing.T) {
 		}
 	})
 	if err != nil {
+		t.Fail()
+	}
+}
+
+func TestIsBipartite_false(t *testing.T) {
+	var (
+		a = graph.NewNode("a", nil)
+		b = graph.NewNode("b", nil)
+		c = graph.NewNode("c", nil)
+		d = graph.NewNode("d", nil)
+		e = graph.NewNode("e", nil)
+	)
+
+	//           b
+	//         ↙   ↖
+	//       c       a
+	//     ↙   ↘   ↗
+	//    e  →   d
+	//
+
+	a.AddEdge(b)
+	b.AddEdge(c)
+	c.AddEdge(d)
+	d.AddEdge(a)
+	c.AddEdge(e)
+	e.AddEdge(d)
+
+	g := graph.New("test", nil, graph.NewNodes(
+		a, b, c, d, e,
+	))
+
+	if g.IsBipartite() {
+		t.Fail()
+	}
+}
+
+func TestIsBipartite_true(t *testing.T) {
+	var (
+		a = graph.NewNode("a", nil)
+		b = graph.NewNode("b", nil)
+		c = graph.NewNode("c", nil)
+		d = graph.NewNode("d", nil)
+		e = graph.NewNode("e", nil)
+	)
+
+	//  a   b   c
+	//   ↘ ↙ ↘ ↙
+	//    d   e
+
+	a.AddEdge(d)
+	b.AddEdge(d)
+	b.AddEdge(e)
+	c.AddEdge(e)
+
+	g := graph.New("test", nil, graph.NewNodes(
+		a, b, c, d, e,
+	))
+
+	if !g.IsBipartite() {
+		t.Fail()
+	}
+}
+
+func TestIsMultipartite_2_true(t *testing.T) {
+	var (
+		a = graph.NewNode("a", nil)
+		b = graph.NewNode("b", nil)
+		c = graph.NewNode("c", nil)
+		d = graph.NewNode("d", nil)
+		e = graph.NewNode("e", nil)
+	)
+
+	//  a   b   c
+	//   ↘ ↙ ↘ ↙
+	//    d   e
+
+	a.AddEdge(d)
+	b.AddEdge(d)
+	b.AddEdge(e)
+	c.AddEdge(e)
+
+	g := graph.New("test", nil, graph.NewNodes(
+		a, b, c, d, e,
+	))
+
+	if !g.IsMultipartite(2) {
+		t.Fail()
+	}
+}
+
+func TestIsMultipartite_2_false(t *testing.T) {
+	var (
+		a = graph.NewNode("a", nil)
+		b = graph.NewNode("b", nil)
+		c = graph.NewNode("c", nil)
+		d = graph.NewNode("d", nil)
+		e = graph.NewNode("e", nil)
+	)
+
+	//  a   b   c
+	//   ↘ ↙ ↘ ↙
+	//    d → e
+
+	a.AddEdge(d)
+	b.AddEdge(d)
+	b.AddEdge(e)
+	c.AddEdge(e)
+	d.AddEdge(e)
+
+	g := graph.New("test", nil, graph.NewNodes(
+		a, b, c, d, e,
+	))
+
+	if g.IsMultipartite(2) {
 		t.Fail()
 	}
 }

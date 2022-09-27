@@ -10,7 +10,7 @@ import (
 // the slice.
 type Path Nodes
 
-// Paths is a collection of Path node sets.
+// Paths is a collection of Path nodes.
 type Paths []Path
 
 // Identical checks if the given path is the same.

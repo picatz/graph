@@ -121,3 +121,19 @@ func (edges Edges) AdjacentTo(nodes ...*Node) bool {
 
 	return len(nodeSet) == len(nodes)
 }
+
+type AddEdge struct {
+	From      *Node
+	Direction *EdgeDirection
+	To        *Node
+}
+
+func AddEdges(addEdge ...AddEdge) {
+	for _, addEdge := range addEdge {
+		if addEdge.Direction != nil {
+			addEdge.From.AddEdgeWithDirection(addEdge.To, *addEdge.Direction)
+			continue
+		}
+		addEdge.From.AddEdge(addEdge.To)
+	}
+}
