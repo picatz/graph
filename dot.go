@@ -16,7 +16,19 @@ func EncodeDOT(w io.Writer, nodes Nodes) error {
 
 	for _, node := range nodes {
 		if len(node.Edges.Out()) > 0 {
-			_, err = bw.WriteString(fmt.Sprintf("\t%s -> { %s }\n", node.Name, strings.Join(node.Edges.Out().Nodes().Names(), " ")))
+			_, err = bw.WriteString(
+				fmt.Sprintf(
+					"\t%q -> { %s }\n",
+					node.Name,
+					func() string {
+						var names []string
+						for _, edge := range node.Edges.Out() {
+							names = append(names, fmt.Sprintf("%q", edge.Node.Name))
+						}
+						return strings.Join(names, " ")
+					}(),
+				),
+			)
 			if err != nil {
 				return fmt.Errorf("graph failed to encode DOT: %w", err)
 			}
