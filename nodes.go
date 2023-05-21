@@ -64,6 +64,8 @@ func NewNodeSet(nodes ...*Node) NodeSet {
 	return ns
 }
 
+// String returns a comma-separated list of node names in the set
+// in alphabetical order.
 func (n NodeSet) String() string {
 	nodes := []string{}
 
@@ -78,6 +80,7 @@ func (n NodeSet) String() string {
 	return strings.Join(nodes, ", ")
 }
 
+// Contains returns true if the given node is in the set.
 func (n NodeSet) Contains(node *Node) bool {
 	if len(n) == 0 {
 		return false
@@ -86,10 +89,13 @@ func (n NodeSet) Contains(node *Node) bool {
 	return ok
 }
 
+// Add adds the given node to the set.
 func (ns NodeSet) Add(node *Node) {
 	ns[node] = struct{}{}
 }
 
+// IsAdjacentWith returns true if the given node is adjacent to
+// all the other given nodes.
 func (ns NodeSet) IsAdjacentWith(other ...*Node) bool {
 	var isAdj int
 	for n := range ns {
@@ -100,6 +106,7 @@ func (ns NodeSet) IsAdjacentWith(other ...*Node) bool {
 	return isAdj >= len(other)
 }
 
+// Nodes returns a slice of nodes in the set.
 func (ns NodeSet) Nodes() []*Node {
 	nodes := []*Node{}
 	for n := range ns {
@@ -108,6 +115,8 @@ func (ns NodeSet) Nodes() []*Node {
 	return nodes
 }
 
+// SameAs returns true if the given node set contains
+// the same nodes as the other node set.
 func (ns NodeSet) SameAs(other NodeSet) bool {
 	if len(ns) != len(other) {
 		return false
@@ -125,10 +134,12 @@ func (ns NodeSet) SameAs(other NodeSet) bool {
 	return len(ns) == sameCount
 }
 
+// Emtpy returns true if the set is empty, false otherwise.
 func (ns NodeSet) Emtpy() bool {
 	return len(ns) == 0
 }
 
+// IndexOf returns the index of the given node in the set.
 func (nodes Nodes) IndexOf(o *Node) int {
 	for i, node := range nodes {
 		if node == o {
@@ -138,6 +149,7 @@ func (nodes Nodes) IndexOf(o *Node) int {
 	return -1
 }
 
+// AtIndex returns the node at the given index.
 func (nodes Nodes) AtIndex(i int) (*Node, error) {
 	if len(nodes) <= i {
 		return nil, fmt.Errorf("graph invalid index %d for nodes of size %d", i, len(nodes))
@@ -145,12 +157,15 @@ func (nodes Nodes) AtIndex(i int) (*Node, error) {
 	return nodes[i], nil
 }
 
+// NodeSets is a collection of NodeSet objects.
 type NodeSets []NodeSet
 
+// Emtpy returns true if the set is empty, false otherwise.
 func (nodeSets NodeSets) Emtpy() bool {
 	return len(nodeSets) == 0
 }
 
+// Contains returns true if the given node is in the set.
 func (nodeSets NodeSets) Contains(n *Node) bool {
 	for _, nodeSet := range nodeSets {
 		if nodeSet.Contains(n) {
@@ -160,6 +175,7 @@ func (nodeSets NodeSets) Contains(n *Node) bool {
 	return false
 }
 
+// GetSetThatContains returns the NodeSet that contains the given node.
 func (nodeSets NodeSets) GetSetThatContains(n *Node) (NodeSet, bool) {
 	for _, nodeSet := range nodeSets {
 		if nodeSet.Contains(n) {
@@ -169,6 +185,7 @@ func (nodeSets NodeSets) GetSetThatContains(n *Node) (NodeSet, bool) {
 	return nil, false
 }
 
+// GetSetNotAdjacentWith returns the NodeSet that is not adjacent to the given nodes.
 func (nodeSets NodeSets) GetSetNotAdjacentWith(nodes ...*Node) (NodeSet, bool) {
 	for _, nodeSet := range nodeSets {
 		if !nodeSet.IsAdjacentWith(nodes...) {
@@ -243,6 +260,8 @@ func (n *Node) HasCycles() bool {
 	return false
 }
 
+// HasCycleContaining checks if the Node is part of a cycle
+// that contains the given node.
 func (n *Node) HasCycleContaining(node *Node) bool {
 	for _, edge := range n.Edges.Out() {
 		path := edge.Node.PathTo(n)
