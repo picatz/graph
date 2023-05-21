@@ -97,13 +97,12 @@ func (ns NodeSet) Add(node *Node) {
 // IsAdjacentWith returns true if the given node is adjacent to
 // all the other given nodes.
 func (ns NodeSet) IsAdjacentWith(other ...*Node) bool {
-	var isAdj int
 	for n := range ns {
-		if n.Edges.AdjacentTo(other...) {
-			isAdj++
+		if !n.Edges.AdjacentTo(other...) {
+			return false
 		}
 	}
-	return isAdj >= len(other)
+	return true
 }
 
 // Nodes returns a slice of nodes in the set.
