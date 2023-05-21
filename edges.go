@@ -137,3 +137,6 @@ func AddEdges(addEdge ...AddEdge) {
 		addEdge.From.AddEdge(addEdge.To)
 	}
 }
+
+// EdgeMap is a map of nodes to a slice of nodes.
+type EdgeMap map[*Node]Nodes
