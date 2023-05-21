@@ -2,6 +2,7 @@ package graph_test
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/picatz/graph"
@@ -664,37 +665,6 @@ func TestFindCliques_2(t *testing.T) {
 	}
 }
 
-func TestSub(t *testing.T) {
-	sub := graph.Sub{
-		Name: "test",
-		Attributes: graph.Attributes{
-			"example": true,
-		},
-		Nodes: graph.NewNodes(
-			graph.NewNode(
-				"first",
-				graph.Attributes{
-					"something": "yes",
-				},
-			),
-			graph.NewNode(
-				"second",
-				graph.Attributes{
-					"something": true,
-				},
-			),
-			graph.NewNode(
-				"third",
-				graph.Attributes{
-					"something": 1,
-				},
-			),
-		),
-	}
-
-	fmt.Println(sub)
-}
-
 func TestAttributes(t *testing.T) {
 	attrs := graph.Attributes{
 		"hello":   "world",
@@ -763,9 +733,9 @@ func TestIsBipartite_false(t *testing.T) {
 	c.AddEdge(e)
 	e.AddEdge(d)
 
-	g := graph.New("test", nil, graph.NewNodes(
+	g := graph.New("test", graph.WithNodes(graph.NewNodes(
 		a, b, c, d, e,
-	))
+	)))
 
 	if g.IsBipartite() {
 		t.Fail()
@@ -790,9 +760,9 @@ func TestIsBipartite_true(t *testing.T) {
 	b.AddEdge(e)
 	c.AddEdge(e)
 
-	g := graph.New("test", nil, graph.NewNodes(
+	g := graph.New("test", graph.WithNodes(graph.NewNodes(
 		a, b, c, d, e,
-	))
+	)))
 
 	if !g.IsBipartite() {
 		t.Fail()
@@ -817,9 +787,9 @@ func TestIsMultipartite_2_true(t *testing.T) {
 	b.AddEdge(e)
 	c.AddEdge(e)
 
-	g := graph.New("test", nil, graph.NewNodes(
+	g := graph.New("test", graph.WithNodes(graph.NewNodes(
 		a, b, c, d, e,
-	))
+	)))
 
 	if !g.IsMultipartite(2) {
 		t.Fail()
@@ -845,11 +815,134 @@ func TestIsMultipartite_2_false(t *testing.T) {
 	c.AddEdge(e)
 	d.AddEdge(e)
 
-	g := graph.New("test", nil, graph.NewNodes(
+	g := graph.New("test", graph.WithNodes(graph.NewNodes(
 		a, b, c, d, e,
-	))
+	)))
 
 	if g.IsMultipartite(2) {
 		t.Fail()
+	}
+}
+
+func TestInstance_DFS(t *testing.T) {
+	// Create a new graph instance.
+	inst := graph.New("test")
+
+	// Add some nodes to the graph.
+	nodeA := graph.NewNode("a", nil)
+	nodeB := graph.NewNode("b", nil)
+	nodeC := graph.NewNode("c", nil)
+	nodeD := graph.NewNode("d", nil)
+	nodeE := graph.NewNode("e", nil)
+
+	inst.AddNodes(
+		nodeA,
+		nodeB,
+		nodeC,
+		nodeD,
+		nodeE,
+	)
+
+	// Add some edges to the graph.
+	//
+	//  ┌───────────────┐
+	//  ↓               │
+	//  a → b → c → d → e
+	//
+	nodeA.AddEdge(nodeB)
+	nodeB.AddEdge(nodeC)
+	nodeC.AddEdge(nodeD)
+	nodeD.AddEdge(nodeE)
+	nodeE.AddEdge(nodeA)
+
+	// Create a slice to store the visited nodes.
+	visited := graph.Nodes{}
+
+	// Define a function to visit each node.
+	fn := func(node *graph.Node) {
+		visited = append(visited, node)
+	}
+
+	// Perform DFS on the graph.
+	inst.DFS(fn)
+
+	// Check that the visited nodes are in the correct order.
+	expected := graph.Nodes{
+		nodeA,
+		nodeB,
+		nodeC,
+		nodeD,
+		nodeE,
+	}
+
+	if !reflect.DeepEqual(visited, expected) {
+		t.Fail()
+	}
+}
+
+func TestInstance_BFS(t *testing.T) {
+	// Create a new graph instance.
+	inst := graph.New("test")
+
+	// Add some nodes to the graph.
+	nodeA := graph.NewNode("a", nil)
+	nodeB := graph.NewNode("b", nil)
+	nodeC := graph.NewNode("c", nil)
+	nodeD := graph.NewNode("d", nil)
+	nodeE := graph.NewNode("e", nil)
+	nodeF := graph.NewNode("f", nil)
+	nodeG := graph.NewNode("g", nil)
+	nodeH := graph.NewNode("h", nil)
+
+	inst.AddNodes(
+		nodeA,
+		nodeB,
+		nodeC,
+		nodeD,
+		nodeE,
+		nodeF,
+		nodeG,
+		nodeH,
+	)
+
+	// Add some edges to the graph.
+	//
+	//     c           h
+	//     ↑           ↑
+	// a → b → d → f → g
+	//     ↓   |
+	//     e ←─┘
+	//
+	nodeA.AddEdge(nodeB)
+	nodeB.AddEdge(nodeC)
+	nodeB.AddEdge(nodeD)
+	nodeB.AddEdge(nodeE)
+	nodeD.AddEdge(nodeE)
+	nodeD.AddEdge(nodeF)
+	nodeF.AddEdge(nodeG)
+	nodeG.AddEdge(nodeH)
+
+	// Create a slice to store the visited nodes.
+	visited := graph.Nodes{}
+
+	// Perform BFS on the graph.
+	inst.BFS(func(node *graph.Node) {
+		visited = append(visited, node)
+	})
+
+	// Check that the visited nodes are in the correct order.
+	expected := graph.Nodes{
+		nodeA,
+		nodeB,
+		nodeC,
+		nodeD,
+		nodeE,
+		nodeF,
+		nodeG,
+		nodeH,
+	}
+
+	if !reflect.DeepEqual(visited, expected) {
+		t.Errorf("visited nodes = %v, expected %v", visited, expected)
 	}
 }
